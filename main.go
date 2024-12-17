@@ -6,17 +6,18 @@ import (
 )
 
 func main() {
-	cfg := apiConfig{
+	apiCfg := apiConfig{
 		fileServerHits: atomic.Int32{},
 	}
 	mux := http.NewServeMux()
 	fileServer := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
-	mux.Handle("GET /app", cfg.middlewareMetricsInc(fileServer))
+	mux.Handle("GET /app", apiCfg.middlewareMetricsInc(fileServer))
 
-	mux.HandleFunc("GET /admin/metrics", cfg.handleMetrics)
-	mux.HandleFunc("POST /admin/reset", cfg.resetMetrics)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handleMetrics)
+	mux.HandleFunc("POST /admin/reset", apiCfg.resetMetrics)
 
 	mux.HandleFunc("GET /api/healthz", handleReadiness)
+	mux.HandleFunc("POST /api/validate_chirp", handleValidateChirp)
 
 	server := http.Server{
 		Handler: mux,
