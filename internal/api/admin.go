@@ -1,17 +1,10 @@
-package main
+package api
 
 import (
 	"fmt"
 	"net/http"
-	"sync/atomic"
-
-	"github.com/JP-Go/http-server-go/internal/database"
+	"os"
 )
-
-type apiConfig struct {
-	fileServerHits atomic.Int32
-	db             *database.Queries
-}
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -21,9 +14,14 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 }
 
 func (cfg *apiConfig) resetMetrics(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("PLATFORM") != "dev" {
+		RespondWithError(w, http.StatusForbidden, "Forbiden endpoint")
+		return
+	}
 	w.Header().Add("content-type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	cfg.fileServerHits.Store(0)
+	cfg.DB.DeleteAllUsers(r.Context())
 	w.Write([]byte("OK"))
 }
 
