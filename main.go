@@ -1,13 +1,32 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"net/http"
+	"os"
 	"sync/atomic"
+
+	"github.com/JP-Go/http-server-go/internal/database"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 func main() {
+	godotenv.Load()
+	dbUrl := os.Getenv("DB_URL")
+	if dbUrl == "" {
+		fmt.Println("Misconfigured environment. Missing variable DB_URL")
+		os.Exit(1)
+	}
+	db, err := sql.Open("postgres", dbUrl)
+	if err != nil {
+		fmt.Println("Could not connect to database. Exiting")
+		os.Exit(1)
+	}
 	apiCfg := apiConfig{
 		fileServerHits: atomic.Int32{},
+		db:             database.New(db),
 	}
 	mux := http.NewServeMux()
 	fileServer := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
