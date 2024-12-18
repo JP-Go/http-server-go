@@ -12,12 +12,12 @@ import (
 )
 
 type apiConfig struct {
-	fileServerHits atomic.Int32
-	DB             *database.Queries
+	serverHits atomic.Int32
+	DB         *database.Queries
 }
 
 type Api struct {
-	apiConfig *apiConfig
+	config *apiConfig
 }
 
 type errorMessage struct {
@@ -26,20 +26,20 @@ type errorMessage struct {
 
 func NewApi(db *database.Queries) *Api {
 	return &Api{
-		apiConfig: &apiConfig{
-			fileServerHits: atomic.Int32{},
-			DB:             db,
+		config: &apiConfig{
+			serverHits: atomic.Int32{},
+			DB:         db,
 		},
 	}
 }
 
 func (api *Api) RegisterEndpoints(fileServer http.Handler, server *http.ServeMux) {
-	server.Handle("GET /app/", api.apiConfig.middlewareMetricsInc(fileServer))
-	server.HandleFunc("GET /admin/metrics", api.apiConfig.handleMetrics)
-	server.HandleFunc("POST /admin/reset", api.apiConfig.resetMetrics)
+	server.Handle("GET /app/", api.config.middlewareMetricsInc(fileServer))
+	server.HandleFunc("GET /admin/metrics", api.config.handleMetrics)
+	server.HandleFunc("POST /admin/reset", api.config.resetMetrics)
 	server.HandleFunc("GET /api/healthz", handleReadiness)
-	server.HandleFunc("POST /api/validate_chirp", handleValidateChirp)
-	server.HandleFunc("POST /api/users", api.apiConfig.handleCreateUser)
+	server.HandleFunc("POST /api/chirps", api.config.handleCreateChirp)
+	server.HandleFunc("POST /api/users", api.config.handleCreateUser)
 }
 
 func (api *Api) Serve(mux *http.ServeMux) {
