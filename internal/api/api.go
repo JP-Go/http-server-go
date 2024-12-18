@@ -39,6 +39,8 @@ func (api *Api) RegisterEndpoints(fileServer http.Handler, server *http.ServeMux
 	server.HandleFunc("POST /admin/reset", api.config.resetMetrics)
 	server.HandleFunc("GET /api/healthz", handleReadiness)
 	server.HandleFunc("POST /api/chirps", api.config.handleCreateChirp)
+	server.HandleFunc("GET /api/chirps", api.config.handleGetChirps)
+	server.HandleFunc("GET /api/chirps/{chirpID}", api.config.handleGetChirp)
 	server.HandleFunc("POST /api/users", api.config.handleCreateUser)
 }
 

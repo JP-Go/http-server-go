@@ -122,3 +122,52 @@ func (api *apiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) 
 	}
 	RespondWithJSON(w, http.StatusCreated, output)
 }
+
+func (api *apiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
+
+	chirps, err := api.DB.GetChirps(r.Context())
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Unexpected error")
+		return
+	}
+
+	output := make([]outputChirp, len(chirps))
+	for i, chirp := range chirps {
+		output[i] = outputChirp{
+			ID:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID.UUID,
+		}
+	}
+	RespondWithJSON(w, http.StatusOK, output)
+}
+
+func (api *apiConfig) handleGetChirp(w http.ResponseWriter, r *http.Request) {
+	uuid, err := uuid.Parse(r.PathValue("chirpID"))
+
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid chirpID")
+		return
+	}
+
+	chirp, err := api.DB.FindChirpByID(r.Context(), uuid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			RespondWithError(w, http.StatusNotFound, "Chirp not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Unexpected error")
+		}
+		return
+	}
+
+	output := outputChirp{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID.UUID,
+	}
+	RespondWithJSON(w, http.StatusOK, output)
+}
