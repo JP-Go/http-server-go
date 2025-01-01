@@ -18,10 +18,14 @@ func (cfg *apiConfig) resetMetrics(w http.ResponseWriter, r *http.Request) {
 		RespondWithError(w, http.StatusForbidden, "Forbiden endpoint")
 		return
 	}
+	cfg.serverHits.Store(0)
+	err := cfg.DB.DeleteAllUsers(r.Context())
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	w.Header().Add("content-type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	cfg.serverHits.Store(0)
-	cfg.DB.DeleteAllUsers(r.Context())
 	w.Write([]byte("OK"))
 }
 

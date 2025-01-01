@@ -42,6 +42,7 @@ func (api *Api) RegisterEndpoints(fileServer http.Handler, server *http.ServeMux
 	server.HandleFunc("GET /api/chirps", api.config.handleGetChirps)
 	server.HandleFunc("GET /api/chirps/{chirpID}", api.config.handleGetChirp)
 	server.HandleFunc("POST /api/users", api.config.handleCreateUser)
+	server.HandleFunc("POST /api/login", api.config.handleLogin)
 }
 
 func (api *Api) Serve(mux *http.ServeMux) {

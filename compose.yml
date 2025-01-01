@@ -1,0 +1,8 @@
+services:
+  database:
+    image: postgres:16
+    container_name: "db-http-servers"
+    ports:
+      - 5432:5432
+    environment:
+        POSTGRES_PASSWORD: postgres
