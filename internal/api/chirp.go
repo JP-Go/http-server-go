@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/JP-Go/http-server-go/internal/auth"
 	"github.com/JP-Go/http-server-go/internal/database"
 	"github.com/google/uuid"
 )
@@ -56,8 +57,7 @@ func CleanChirp(chirp ValidChirp, profaneWords []string, replacer string) (Valid
 }
 
 type inputChirp struct {
-	Body   string `json:"body"`
-	UserID string `json:"user_id"`
+	Body string `json:"body"`
 }
 
 type outputChirp struct {
@@ -68,11 +68,22 @@ type outputChirp struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
-func (api *apiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) {
+func (api *ApiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) {
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		RespondWithError(w, http.StatusForbidden, "Forbidden resource")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, api.JwtSecret)
+	if err != nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
 
 	decoder := json.NewDecoder(r.Body)
 	var chirp inputChirp
-	err := decoder.Decode(&chirp)
+	err = decoder.Decode(&chirp)
 	if err != nil {
 		RespondWithError(w, http.StatusBadRequest, "Error decoding parameters. Invalid JSON")
 		return
@@ -87,13 +98,8 @@ func (api *apiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) 
 		RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	userId, err := uuid.Parse(chirp.UserID)
-	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid User ID")
-		return
-	}
 
-	user, err := api.DB.GetUserByID(r.Context(), userId)
+	user, err := api.DB.GetUserByID(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			RespondWithError(w, http.StatusBadRequest, "User not found")
@@ -123,7 +129,7 @@ func (api *apiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) 
 	RespondWithJSON(w, http.StatusCreated, output)
 }
 
-func (api *apiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
+func (api *ApiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
 
 	chirps, err := api.DB.GetChirps(r.Context())
 	if err != nil {
@@ -144,7 +150,7 @@ func (api *apiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, output)
 }
 
-func (api *apiConfig) handleGetChirp(w http.ResponseWriter, r *http.Request) {
+func (api *ApiConfig) handleGetChirp(w http.ResponseWriter, r *http.Request) {
 	uuid, err := uuid.Parse(r.PathValue("chirpID"))
 
 	if err != nil {

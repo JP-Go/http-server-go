@@ -27,10 +27,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		fmt.Println("Empty JWT secret. Using the string 'secret'. THIS MUST NOT BE USED IN PRODUCTION")
+		jwtSecret = "secret"
+	}
+
 	mux := http.NewServeMux()
 	fileServer := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
 
-	chirpyApi := api.NewApi(database.New(db))
+	apiConfig := api.ApiConfig{
+		DB:        database.New(db),
+		JwtSecret: jwtSecret,
+	}
+	chirpyApi := api.NewApi(&apiConfig)
 	chirpyApi.RegisterEndpoints(fileServer, mux)
 	chirpyApi.Serve(mux)
+	fmt.Println("Serving on port 8080")
 }

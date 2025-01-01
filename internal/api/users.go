@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -25,7 +26,7 @@ type CreateUserRequestBody struct {
 	Password string `json:"password"`
 }
 
-func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var body CreateUserRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Request body is not valid JSON.")
@@ -52,6 +53,7 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 			RespondWithError(w, http.StatusConflict, "User already exists.")
 			return
 		}
+		log.Printf("%s\n", err)
 		RespondWithError(w, http.StatusInternalServerError, "Unexpected error. Contact administrators")
 		return
 	}
@@ -63,9 +65,17 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-type LoginRequestBody = CreateUserRequestBody
+type LoginRequestBody struct {
+	CreateUserRequestBody
+	ExpiresIn int `json:"expires_in_seconds"`
+}
 
-func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
+type LoginResponseBody struct {
+	User
+	Token string `json:"token"`
+}
+
+func (cfg *ApiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var body LoginRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Request body is not valid JSON.")
@@ -92,10 +102,19 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		RespondWithError(w, http.StatusUnauthorized, "Invalid email or password.")
 		return
 	}
-	RespondWithJSON(w, http.StatusOK, User{
-		ID:        dbUser.ID,
-		CreatedAt: dbUser.CreatedAt,
-		UpdatedAt: dbUser.UpdatedAt,
-		Email:     dbUser.Email,
+	expiresIn := time.Duration(body.ExpiresIn) * time.Second
+	if expiresIn < time.Hour {
+		expiresIn = time.Hour
+	}
+	token, err := auth.MakeJWT(dbUser.ID, cfg.JwtSecret, expiresIn)
+
+	RespondWithJSON(w, http.StatusOK, LoginResponseBody{
+		User: User{
+			ID:        dbUser.ID,
+			CreatedAt: dbUser.CreatedAt,
+			UpdatedAt: dbUser.UpdatedAt,
+			Email:     dbUser.Email,
+		},
+		Token: token,
 	})
 }

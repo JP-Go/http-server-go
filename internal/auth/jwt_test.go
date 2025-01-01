@@ -9,19 +9,19 @@ import (
 	"github.com/google/uuid"
 )
 
-const secret = "secret"
+const testSecret = "secret"
 
 func Test_JWTCanMake(t *testing.T) {
 	userID := uuid.New()
 	expirationTime := time.Second * 5
 
-	signedString, err := auth.MakeJWT(userID, secret, expirationTime)
+	signedString, err := auth.MakeJWT(userID, testSecret, expirationTime)
 	if err != nil || signedString == "" {
 		t.Fatalf("Could not sign token due to %s", err)
 	}
 
 	token, err := jwt.Parse(signedString, func(t *jwt.Token) (interface{}, error) {
-		return []byte(secret), nil
+		return []byte(testSecret), nil
 	}, jwt.WithIssuer(auth.DefaultIssuer))
 	if !token.Valid {
 		t.Fatalf("Created an invalid token")
@@ -55,15 +55,30 @@ func Test_JWTCanMake(t *testing.T) {
 
 }
 
+func Test_ValidateJWT_TokenExpires(t *testing.T) {
+	userID := uuid.New()
+	t.Parallel()
+	expirationTime := time.Second * 1
+
+	signedString, err := auth.MakeJWT(userID, testSecret, expirationTime)
+	timer := time.NewTimer(expirationTime + time.Second)
+	<-timer.C
+	_, err = auth.ValidateJWT(signedString, testSecret)
+	if err == nil {
+		t.Fatal("Should fail in expired token")
+	}
+
+}
+
 func Test_JWTVerify(t *testing.T) {
 	userID := uuid.New()
 	expirationTime := time.Second * 5
 
-	signedString, err := auth.MakeJWT(userID, secret, expirationTime)
+	signedString, err := auth.MakeJWT(userID, testSecret, expirationTime)
 	if err != nil || signedString == "" {
 		t.Fatalf("Could not sign token due to %s", err)
 	}
-	possibleUserID, err := auth.ValidateJWT(signedString, secret)
+	possibleUserID, err := auth.ValidateJWT(signedString, testSecret)
 	if err != nil {
 		t.Fatalf("Could not validate jwt due to: %s", err)
 	}

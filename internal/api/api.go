@@ -11,26 +11,23 @@ import (
 	"github.com/JP-Go/http-server-go/internal/database"
 )
 
-type apiConfig struct {
+type ApiConfig struct {
 	serverHits atomic.Int32
 	DB         *database.Queries
+	JwtSecret  string
 }
 
 type Api struct {
-	config *apiConfig
+	config *ApiConfig
 }
 
 type errorMessage struct {
 	Message string `json:"error"`
 }
 
-func NewApi(db *database.Queries) *Api {
-	return &Api{
-		config: &apiConfig{
-			serverHits: atomic.Int32{},
-			DB:         db,
-		},
-	}
+func NewApi(apiConfig *ApiConfig) *Api {
+	apiConfig.serverHits.Store(0)
+	return &Api{config: apiConfig}
 }
 
 func (api *Api) RegisterEndpoints(fileServer http.Handler, server *http.ServeMux) {
