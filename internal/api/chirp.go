@@ -68,7 +68,7 @@ type outputChirp struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
-func (api *ApiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) {
+func (api *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
@@ -129,7 +129,7 @@ func (api *ApiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) 
 	RespondWithJSON(w, http.StatusCreated, output)
 }
 
-func (api *ApiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
+func (api *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 
 	chirps, err := api.DB.GetChirps(r.Context())
 	if err != nil {
@@ -150,7 +150,7 @@ func (api *ApiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, output)
 }
 
-func (api *ApiConfig) handleGetChirp(w http.ResponseWriter, r *http.Request) {
+func (api *ApiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 	uuid, err := uuid.Parse(r.PathValue("chirpID"))
 
 	if err != nil {

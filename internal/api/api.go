@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"os"
+	"log/slog"
 	"sync/atomic"
 
 	"encoding/json"
@@ -32,32 +32,51 @@ func NewApi(apiConfig *ApiConfig) *Api {
 
 func (api *Api) RegisterEndpoints(fileServer http.Handler, server *http.ServeMux) {
 	server.Handle("GET /app/", api.config.middlewareMetricsInc(fileServer))
-	server.HandleFunc("GET /admin/metrics", api.config.handleMetrics)
+	server.HandleFunc("GET /admin/metrics", api.config.metrics)
 	server.HandleFunc("POST /admin/reset", api.config.resetMetrics)
-	server.HandleFunc("GET /api/healthz", handleReadiness)
-	server.HandleFunc("POST /api/chirps", api.config.handleCreateChirp)
-	server.HandleFunc("GET /api/chirps", api.config.handleGetChirps)
-	server.HandleFunc("GET /api/chirps/{chirpID}", api.config.handleGetChirp)
-	server.HandleFunc("POST /api/users", api.config.handleCreateUser)
-	server.HandleFunc("POST /api/login", api.config.handleLogin)
+	server.HandleFunc("GET /api/healthz", readiness)
+	server.HandleFunc("POST /api/chirps", api.config.createChirp)
+	server.HandleFunc("GET /api/chirps", api.config.getChirps)
+	server.HandleFunc("GET /api/chirps/{chirpID}", api.config.getChirp)
+	server.HandleFunc("POST /api/users", api.config.createUser)
+	server.HandleFunc("POST /api/login", api.config.login)
 	server.HandleFunc("POST /api/refresh", api.config.refreshAccessToken)
 	server.HandleFunc("POST /api/revoke", api.config.revokeRefreshToken)
 }
 
-func (api *Api) Serve(mux *http.ServeMux) {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+func (api *Api) Serve(mux *http.ServeMux, port int) {
 	server := http.Server{
 		Handler: mux,
-		Addr:    fmt.Sprintf(":%s", port),
+		Addr:    fmt.Sprintf(":%d", port),
 	}
+	slog.Info(fmt.Sprintf("Server running on %d", port))
 	server.ListenAndServe()
 }
 
-func RespondWithJSON(w http.ResponseWriter, status int, jsonMessage any) {
-	message, marshalErr := json.Marshal(jsonMessage)
+func BadRequestResponse(w http.ResponseWriter, msg string) {
+	RespondWithError(w, http.StatusBadRequest, msg)
+}
+
+func InternalServerErrorResponse(w http.ResponseWriter, msg string) {
+	RespondWithError(w, http.StatusInternalServerError, msg)
+}
+
+func NotFoundResponse(w http.ResponseWriter, msg string) {
+	RespondWithError(w, http.StatusNotFound, msg)
+}
+
+func UnauthorizedResponse(w http.ResponseWriter, msg string) {
+	RespondWithError(w, http.StatusUnauthorized, msg)
+}
+
+func OkResponse(w http.ResponseWriter, data any) {
+	RespondWithJSON(w, http.StatusOK, data)
+}
+
+func RespondWithError(w http.ResponseWriter, status int, msg string) {
+	message, marshalErr := json.Marshal(errorMessage{
+		Message: msg,
+	})
 	if marshalErr != nil {
 		w.Header().Add("content-type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -69,10 +88,8 @@ func RespondWithJSON(w http.ResponseWriter, status int, jsonMessage any) {
 	w.Write(message)
 }
 
-func RespondWithError(w http.ResponseWriter, status int, msg string) {
-	message, marshalErr := json.Marshal(errorMessage{
-		Message: msg,
-	})
+func RespondWithJSON(w http.ResponseWriter, status int, jsonMessage any) {
+	message, marshalErr := json.Marshal(jsonMessage)
 	if marshalErr != nil {
 		w.Header().Add("content-type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/JP-Go/http-server-go/internal/api"
 	"github.com/JP-Go/http-server-go/internal/database"
@@ -32,6 +33,19 @@ func main() {
 		fmt.Println("Empty JWT secret. Using the string 'secret'. THIS MUST NOT BE USED IN PRODUCTION")
 		jwtSecret = "secret"
 	}
+	portNumber := 8080
+	port := os.Getenv("PORT")
+	if port == "" {
+		fmt.Println("Empty PORT variable. Using 8080")
+	} else {
+		possiblePort, err := strconv.Atoi(port)
+		if err != nil {
+			fmt.Println("Invalid PORT number. Using 8080")
+		} else {
+			portNumber = possiblePort
+		}
+
+	}
 
 	mux := http.NewServeMux()
 	fileServer := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
@@ -42,6 +56,5 @@ func main() {
 	}
 	chirpyApi := api.NewApi(&apiConfig)
 	chirpyApi.RegisterEndpoints(fileServer, mux)
-	chirpyApi.Serve(mux)
-	fmt.Println("Serving on port 8080")
+	chirpyApi.Serve(mux, portNumber)
 }

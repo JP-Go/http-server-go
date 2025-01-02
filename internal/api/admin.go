@@ -29,7 +29,7 @@ func (cfg *ApiConfig) resetMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-func (cfg *ApiConfig) handleMetrics(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) metrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("content-type", "text/html; charset=utf-8")
 	w.Header().Add("cache-control", "no-store")
 	w.WriteHeader(http.StatusOK)
