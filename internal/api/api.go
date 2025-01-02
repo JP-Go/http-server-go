@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"sync/atomic"
 
@@ -49,8 +50,11 @@ func (api *Api) Serve(mux *http.ServeMux, port int) {
 		Handler: mux,
 		Addr:    fmt.Sprintf(":%d", port),
 	}
-	slog.Info(fmt.Sprintf("Server running on %d", port))
-	server.ListenAndServe()
+	slog.Info(fmt.Sprintf("Server running on port :%d", port))
+	err := server.ListenAndServe()
+	if err != nil {
+		log.Fatalf("Error initializing API. %s. Can not recover. Exiting", err)
+	}
 }
 
 func OkResponse(w http.ResponseWriter, data any) {
