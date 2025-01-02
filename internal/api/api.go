@@ -40,6 +40,8 @@ func (api *Api) RegisterEndpoints(fileServer http.Handler, server *http.ServeMux
 	server.HandleFunc("GET /api/chirps/{chirpID}", api.config.handleGetChirp)
 	server.HandleFunc("POST /api/users", api.config.handleCreateUser)
 	server.HandleFunc("POST /api/login", api.config.handleLogin)
+	server.HandleFunc("POST /api/refresh", api.config.refreshAccessToken)
+	server.HandleFunc("POST /api/revoke", api.config.revokeRefreshToken)
 }
 
 func (api *Api) Serve(mux *http.ServeMux) {
