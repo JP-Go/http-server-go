@@ -21,7 +21,7 @@ func (cfg *ApiConfig) resetMetrics(w http.ResponseWriter, r *http.Request) {
 	cfg.serverHits.Store(0)
 	err := cfg.DB.DeleteAllUsers(r.Context())
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, err.Error())
+		InternalServerErrorResponse(w, err.Error())
 		return
 	}
 	w.Header().Add("content-type", "text/plain; charset=utf-8")

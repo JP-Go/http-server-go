@@ -25,40 +25,40 @@ type LoginResponseBody struct {
 func (cfg *ApiConfig) login(w http.ResponseWriter, r *http.Request) {
 	var body LoginRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Request body is not valid JSON.")
+		InternalServerErrorResponse(w, "Request body is not valid JSON.")
 		return
 	}
 	if body.Email == "" {
-		RespondWithError(w, http.StatusBadRequest, "Email must not be empty.")
+		BadRequestResponse(w, "Email must not be empty.")
 		return
 	}
 
 	if body.Password == "" {
-		RespondWithError(w, http.StatusBadRequest, "Password must not be empty.")
+		BadRequestResponse(w, "Password must not be empty.")
 		return
 	}
 	dbUser, err := cfg.DB.GetUserByEmail(r.Context(), body.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			RespondWithError(w, http.StatusUnauthorized, "Invalid email or password.")
+			UnauthorizedResponse(w, "Invalid email or password.")
 			return
 		}
 	}
 	err = auth.VerifyPassword(body.Password, dbUser.HashedPassword.String)
 	if err != nil {
-		RespondWithError(w, http.StatusUnauthorized, "Invalid email or password.")
+		UnauthorizedResponse(w, "Invalid email or password.")
 		return
 	}
 	token, err := auth.MakeJWT(dbUser.ID, cfg.JwtSecret, defaultAccessTokenTTL)
 
 	if err != nil {
-		RespondWithError(w, http.StatusUnauthorized, "Invalid email or password.")
+		UnauthorizedResponse(w, "Invalid email or password.")
 		return
 	}
 
 	refreshToken, err := auth.MakeRefreshToken()
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Error on login. Try again later.")
+		InternalServerErrorResponse(w, "Error on login. Try again later.")
 		return
 	}
 	_, err = cfg.DB.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
@@ -67,11 +67,11 @@ func (cfg *ApiConfig) login(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt: time.Now().UTC().Add(defaultRefreshTokenTTL),
 	})
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Error on login. Try again later.")
+		InternalServerErrorResponse(w, "Error on login. Try again later.")
 		return
 	}
 
-	RespondWithJSON(w, http.StatusOK, LoginResponseBody{
+	OkResponse(w, LoginResponseBody{
 		User: User{
 			ID:        dbUser.ID,
 			CreatedAt: dbUser.CreatedAt,

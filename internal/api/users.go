@@ -28,16 +28,16 @@ type CreateUserRequestBody struct {
 func (cfg *ApiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	var body CreateUserRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Request body is not valid JSON.")
+		InternalServerErrorResponse(w, "Request body is not valid JSON.")
 		return
 	}
 	if body.Email == "" {
-		RespondWithError(w, http.StatusBadRequest, "Email must not be empty.")
+		BadRequestResponse(w, "Email must not be empty.")
 		return
 	}
 
 	if body.Password == "" {
-		RespondWithError(w, http.StatusBadRequest, "Password must not be empty.")
+		BadRequestResponse(w, "Password must not be empty.")
 		return
 	}
 	dbUser, err := cfg.DB.CreateUser(r.Context(), database.CreateUserParams{
@@ -53,7 +53,7 @@ func (cfg *ApiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("%s\n", err)
-		RespondWithError(w, http.StatusInternalServerError, "Unexpected error. Contact administrators")
+		InternalServerErrorResponse(w, "Unexpected error. Contact administrators")
 		return
 	}
 	RespondWithJSON(w, http.StatusCreated, User{

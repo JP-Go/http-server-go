@@ -72,12 +72,12 @@ func (api *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		RespondWithError(w, http.StatusForbidden, "Forbidden resource")
+		ForbiddenResponse(w, "Forbidden resource")
 		return
 	}
 	userID, err := auth.ValidateJWT(token, api.JwtSecret)
 	if err != nil {
-		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		UnauthorizedResponse(w, "Unauthorized")
 		return
 	}
 
@@ -85,26 +85,26 @@ func (api *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	var chirp inputChirp
 	err = decoder.Decode(&chirp)
 	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Error decoding parameters. Invalid JSON")
+		BadRequestResponse(w, "Error decoding parameters. Invalid JSON")
 		return
 	}
 	validChirp, err := ValidateChirp(NewChirp(chirp.Body))
 	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, err.Error())
+		BadRequestResponse(w, err.Error())
 		return
 	}
 	validChirp, err = CleanChirp(validChirp, profaneWords, profanityReplacement)
 	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, err.Error())
+		BadRequestResponse(w, err.Error())
 		return
 	}
 
 	user, err := api.DB.GetUserByID(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			RespondWithError(w, http.StatusBadRequest, "User not found")
+			BadRequestResponse(w, "User not found")
 		} else {
-			RespondWithError(w, http.StatusInternalServerError, "Unexpected error")
+			InternalServerErrorResponse(w, "Unexpected error")
 		}
 		return
 	}
@@ -116,7 +116,7 @@ func (api *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 		Body: validChirp.content,
 	})
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Unexpected error")
+		InternalServerErrorResponse(w, "Unexpected error")
 		return
 	}
 	output := outputChirp{
@@ -133,7 +133,7 @@ func (api *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 
 	chirps, err := api.DB.GetChirps(r.Context())
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Unexpected error")
+		InternalServerErrorResponse(w, "Unexpected error")
 		return
 	}
 
@@ -147,23 +147,23 @@ func (api *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 			UserID:    chirp.UserID.UUID,
 		}
 	}
-	RespondWithJSON(w, http.StatusOK, output)
+	OkResponse(w, output)
 }
 
 func (api *ApiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 	uuid, err := uuid.Parse(r.PathValue("chirpID"))
 
 	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid chirpID")
+		BadRequestResponse(w, "Invalid chirpID")
 		return
 	}
 
 	chirp, err := api.DB.FindChirpByID(r.Context(), uuid)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			RespondWithError(w, http.StatusNotFound, "Chirp not found")
+			NotFoundResponse(w, "Chirp not found")
 		} else {
-			RespondWithError(w, http.StatusInternalServerError, "Unexpected error")
+			InternalServerErrorResponse(w, "Unexpected error")
 		}
 		return
 	}
@@ -175,5 +175,5 @@ func (api *ApiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 		Body:      chirp.Body,
 		UserID:    chirp.UserID.UUID,
 	}
-	RespondWithJSON(w, http.StatusOK, output)
+	OkResponse(w, output)
 }

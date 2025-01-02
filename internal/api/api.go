@@ -53,24 +53,28 @@ func (api *Api) Serve(mux *http.ServeMux, port int) {
 	server.ListenAndServe()
 }
 
-func BadRequestResponse(w http.ResponseWriter, msg string) {
-	RespondWithError(w, http.StatusBadRequest, msg)
+func OkResponse(w http.ResponseWriter, data any) {
+	RespondWithJSON(w, http.StatusOK, data)
 }
 
-func InternalServerErrorResponse(w http.ResponseWriter, msg string) {
-	RespondWithError(w, http.StatusInternalServerError, msg)
+func BadRequestResponse(w http.ResponseWriter, msg string) {
+	RespondWithError(w, http.StatusBadRequest, msg)
 }
 
 func NotFoundResponse(w http.ResponseWriter, msg string) {
 	RespondWithError(w, http.StatusNotFound, msg)
 }
 
+func InternalServerErrorResponse(w http.ResponseWriter, msg string) {
+	RespondWithError(w, http.StatusInternalServerError, msg)
+}
+
 func UnauthorizedResponse(w http.ResponseWriter, msg string) {
 	RespondWithError(w, http.StatusUnauthorized, msg)
 }
 
-func OkResponse(w http.ResponseWriter, data any) {
-	RespondWithJSON(w, http.StatusOK, data)
+func ForbiddenResponse(w http.ResponseWriter, msg string) {
+	RespondWithError(w, http.StatusForbidden, msg)
 }
 
 func RespondWithError(w http.ResponseWriter, status int, msg string) {
