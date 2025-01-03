@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,20 +14,22 @@ import (
 	_ "github.com/lib/pq"
 )
 
+func MustLoadEnv(envVariable string) string {
+	variable := os.Getenv(envVariable)
+	if variable == "" {
+		log.Fatalf("Misconfigured environment. Missing variable %s", envVariable)
+	}
+	return variable
+}
+func Must[T any](val T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
 func main() {
 	godotenv.Load()
-
-	dbUrl := os.Getenv("DB_URL")
-	if dbUrl == "" {
-		fmt.Println("Misconfigured environment. Missing variable DB_URL")
-		os.Exit(1)
-	}
-
-	db, err := sql.Open("postgres", dbUrl)
-	if err != nil {
-		fmt.Println("Could not connect to database. Exiting")
-		os.Exit(1)
-	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -44,15 +47,20 @@ func main() {
 		} else {
 			portNumber = possiblePort
 		}
-
 	}
+
+	dbUrl := MustLoadEnv("DB_URL")
+	db := Must(sql.Open("postgres", dbUrl))
+
+	polkaApiKey := MustLoadEnv("POLKA_KEY")
 
 	mux := http.NewServeMux()
 	fileServer := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
 
 	apiConfig := api.ApiConfig{
-		DB:        database.New(db),
-		JwtSecret: jwtSecret,
+		DB:          database.New(db),
+		PolkaApiKey: polkaApiKey,
+		JwtSecret:   jwtSecret,
 	}
 	chirpyApi := api.NewApi(&apiConfig)
 	chirpyApi.RegisterEndpoints(fileServer, mux)

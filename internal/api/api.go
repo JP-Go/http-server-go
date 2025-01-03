@@ -10,12 +10,14 @@ import (
 	"net/http"
 
 	"github.com/JP-Go/http-server-go/internal/database"
+	"github.com/google/uuid"
 )
 
 type ApiConfig struct {
-	serverHits atomic.Int32
-	DB         *database.Queries
-	JwtSecret  string
+	serverHits  atomic.Int32
+	DB          *database.Queries
+	JwtSecret   string
+	PolkaApiKey string
 }
 
 type Api struct {
@@ -30,19 +32,38 @@ func NewApi(apiConfig *ApiConfig) *Api {
 	apiConfig.serverHits.Store(0)
 	return &Api{config: apiConfig}
 }
+func parseUserIDFromRequest(r *http.Request) uuid.UUID {
+	return uuid.MustParse(r.Context().Value(userIDKey).(string))
+}
 
 func (api *Api) RegisterEndpoints(fileServer http.Handler, server *http.ServeMux) {
 	server.Handle("GET /app/", api.config.middlewareMetricsInc(fileServer))
-	server.HandleFunc("GET /admin/metrics", api.config.metrics)
-	server.HandleFunc("POST /admin/reset", api.config.resetMetrics)
-	server.HandleFunc("GET /api/healthz", readiness)
-	server.HandleFunc("POST /api/chirps", api.config.createChirp)
-	server.HandleFunc("GET /api/chirps", api.config.getChirps)
-	server.HandleFunc("GET /api/chirps/{chirpID}", api.config.getChirp)
-	server.HandleFunc("POST /api/users", api.config.createUser)
-	server.HandleFunc("POST /api/login", api.config.login)
-	server.HandleFunc("POST /api/refresh", api.config.refreshAccessToken)
-	server.HandleFunc("POST /api/revoke", api.config.revokeRefreshToken)
+
+	adminRoutes := http.NewServeMux()
+	adminRoutes.HandleFunc("GET /metrics", api.config.metrics)
+	adminRoutes.HandleFunc("POST /reset", api.config.resetMetrics)
+	adminRoutes.HandleFunc("GET /api/healthz", readiness)
+
+	apiRoutes := http.NewServeMux()
+	apiRoutes.HandleFunc("GET /chirps", api.config.getChirps)
+	apiRoutes.HandleFunc("POST /users", api.config.createUser)
+	apiRoutes.HandleFunc("GET /chirps/{chirpID}", api.config.getChirp)
+
+	apiRoutes.HandleFunc("POST /login", api.config.login)
+	apiRoutes.HandleFunc("POST /refresh", api.config.refreshAccessToken)
+	apiRoutes.HandleFunc("POST /revoke", api.config.revokeRefreshToken)
+	apiRoutes.HandleFunc("POST /polka/webhooks", api.config.polkaUpgradeToChirpyRed)
+
+	loggedInRoutes := http.NewServeMux()
+
+	loggedInRoutes.Handle("DELETE /chirps/{chirpID}", http.HandlerFunc(api.config.deleteChirp))
+	loggedInRoutes.Handle("POST /chirps", http.HandlerFunc(api.config.createChirp))
+	loggedInRoutes.Handle("PUT /users", http.HandlerFunc(api.config.updateUser))
+	apiRoutes.Handle("/", api.config.loggedInMiddleware(loggedInRoutes))
+
+	server.Handle("/admin/", http.StripPrefix("/admin", adminRoutes))
+	server.Handle("/api/", http.StripPrefix("/api", apiRoutes))
+
 }
 
 func (api *Api) Serve(mux *http.ServeMux, port int) {

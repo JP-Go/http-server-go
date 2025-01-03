@@ -12,7 +12,6 @@ import (
 )
 
 const createChirp = `-- name: CreateChirp :one
-
 INSERT INTO chirps (id, created_at, updated_at, user_id, body)
 VALUES (gen_random_uuid(),now(),now(),$1,$2) 
 RETURNING id, created_at, updated_at, body, user_id
@@ -36,8 +35,16 @@ func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp
 	return i, err
 }
 
-const findChirpByID = `-- name: FindChirpByID :one
+const deleteChirp = `-- name: DeleteChirp :exec
+DELETE FROM chirps WHERE id = $1
+`
 
+func (q *Queries) DeleteChirp(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteChirp, id)
+	return err
+}
+
+const findChirpByID = `-- name: FindChirpByID :one
 SELECT id, created_at, updated_at, body, user_id FROM chirps WHERE id = $1
 `
 
@@ -55,8 +62,7 @@ func (q *Queries) FindChirpByID(ctx context.Context, id uuid.UUID) (Chirp, error
 }
 
 const findChirpsFromUser = `-- name: FindChirpsFromUser :many
-
-SELECT id, created_at, updated_at, body, user_id FROM chirps WHERE user_id = $1
+SELECT id, created_at, updated_at, body, user_id FROM chirps WHERE user_id = $1 ORDER BY created_at ASC
 `
 
 func (q *Queries) FindChirpsFromUser(ctx context.Context, userID uuid.NullUUID) ([]Chirp, error) {
@@ -89,7 +95,6 @@ func (q *Queries) FindChirpsFromUser(ctx context.Context, userID uuid.NullUUID) 
 }
 
 const getChirps = `-- name: GetChirps :many
-
 SELECT id, created_at, updated_at, body, user_id FROM chirps ORDER BY created_at ASC
 `
 

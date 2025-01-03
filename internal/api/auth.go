@@ -44,7 +44,7 @@ func (cfg *ApiConfig) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	err = auth.VerifyPassword(body.Password, dbUser.HashedPassword.String)
+	err = auth.VerifyPassword(body.Password, dbUser.HashedPassword)
 	if err != nil {
 		UnauthorizedResponse(w, "Invalid email or password.")
 		return
@@ -73,10 +73,11 @@ func (cfg *ApiConfig) login(w http.ResponseWriter, r *http.Request) {
 
 	OkResponse(w, LoginResponseBody{
 		User: User{
-			ID:        dbUser.ID,
-			CreatedAt: dbUser.CreatedAt,
-			UpdatedAt: dbUser.UpdatedAt,
-			Email:     dbUser.Email,
+			ID:          dbUser.ID,
+			CreatedAt:   dbUser.CreatedAt,
+			UpdatedAt:   dbUser.UpdatedAt,
+			Email:       dbUser.Email,
+			IsChirpyRed: dbUser.IsChirpyRed,
 		},
 		Token:        token,
 		RefreshToken: refreshToken,

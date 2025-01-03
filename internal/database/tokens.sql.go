@@ -33,7 +33,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 }
 
 const getUserFromRefreshToken = `-- name: GetUserFromRefreshToken :one
-SELECT users.id, users.created_at, users.updated_at, users.email, users.hashed_password, 
+SELECT users.id, users.created_at, users.updated_at, users.email, users.hashed_password, users.is_chirpy_red, 
     tokens.token, 
     tokens.expires_at, 
     tokens.revoked_at
@@ -47,7 +47,8 @@ type GetUserFromRefreshTokenRow struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	Email          string
-	HashedPassword sql.NullString
+	HashedPassword string
+	IsChirpyRed    bool
 	Token          string
 	ExpiresAt      time.Time
 	RevokedAt      sql.NullTime
@@ -62,6 +63,7 @@ func (q *Queries) GetUserFromRefreshToken(ctx context.Context, token string) (Ge
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 		&i.Token,
 		&i.ExpiresAt,
 		&i.RevokedAt,

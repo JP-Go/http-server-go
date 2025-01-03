@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -14,10 +13,11 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 
 type CreateUserRequestBody struct {
@@ -41,11 +41,8 @@ func (cfg *ApiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dbUser, err := cfg.DB.CreateUser(r.Context(), database.CreateUserParams{
-		Email: body.Email,
-		HashedPassword: sql.NullString{
-			String: auth.HashPassword(body.Password),
-			Valid:  true,
-		},
+		Email:          body.Email,
+		HashedPassword: auth.HashPassword(body.Password),
 	})
 	if err != nil {
 		if err, ok := err.(*pq.Error); !ok || err.Constraint == "users_email_key" {
@@ -57,9 +54,49 @@ func (cfg *ApiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	RespondWithJSON(w, http.StatusCreated, User{
-		ID:        dbUser.ID,
-		CreatedAt: dbUser.CreatedAt,
-		UpdatedAt: dbUser.UpdatedAt,
-		Email:     dbUser.Email,
+		ID:          dbUser.ID,
+		CreatedAt:   dbUser.CreatedAt,
+		UpdatedAt:   dbUser.UpdatedAt,
+		Email:       dbUser.Email,
+		IsChirpyRed: dbUser.IsChirpyRed,
+	})
+}
+
+func (api *ApiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
+	userID := parseUserIDFromRequest(r)
+	type input = CreateUserRequestBody
+	var body input
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		InternalServerErrorResponse(w, "Request body is not valid JSON.")
+		return
+	}
+	if body.Email == "" {
+		BadRequestResponse(w, "Email must not be empty.")
+		return
+	}
+	if body.Password == "" {
+		BadRequestResponse(w, "Password must not be empty.")
+		return
+	}
+	hashedPassword := auth.HashPassword(body.Password)
+
+	user, err := api.DB.UpdateUserCredentials(r.Context(), database.UpdateUserCredentialsParams{
+		ID:             userID,
+		Email:          body.Email,
+		HashedPassword: hashedPassword,
+	})
+	if err != nil {
+		pqErr, ok := err.(*pq.Error)
+		if ok && pqErr.Code.Name() == "unique_violation" {
+			BadRequestResponse(w, "Email already taken")
+		}
+		return
+	}
+	OkResponse(w, User{
+		ID:          user.ID,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/JP-Go/http-server-go/internal/auth"
 	"github.com/JP-Go/http-server-go/internal/database"
 	"github.com/google/uuid"
 )
@@ -69,21 +68,11 @@ type outputChirp struct {
 }
 
 func (api *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
-
-	token, err := auth.GetBearerToken(r.Header)
-	if err != nil {
-		ForbiddenResponse(w, "Forbidden resource")
-		return
-	}
-	userID, err := auth.ValidateJWT(token, api.JwtSecret)
-	if err != nil {
-		UnauthorizedResponse(w, "Unauthorized")
-		return
-	}
+	userID := parseUserIDFromRequest(r)
 
 	decoder := json.NewDecoder(r.Body)
 	var chirp inputChirp
-	err = decoder.Decode(&chirp)
+	err := decoder.Decode(&chirp)
 	if err != nil {
 		BadRequestResponse(w, "Error decoding parameters. Invalid JSON")
 		return
@@ -130,11 +119,27 @@ func (api *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
-
-	chirps, err := api.DB.GetChirps(r.Context())
-	if err != nil {
-		InternalServerErrorResponse(w, "Unexpected error")
-		return
+	authorID := r.URL.Query().Get("author_id")
+	sort := r.URL.Query().Get("sort")
+	var chirps []database.Chirp
+	if authorID == "" {
+		allChirps, err := api.DB.GetChirps(r.Context())
+		if err != nil {
+			InternalServerErrorResponse(w, "Unexpected error")
+			return
+		}
+		chirps = allChirps
+	} else {
+		authorID, err := uuid.Parse(authorID)
+		userChirps, err := api.DB.FindChirpsFromUser(r.Context(), uuid.NullUUID{
+			UUID:  authorID,
+			Valid: true,
+		})
+		if err != nil {
+			InternalServerErrorResponse(w, "Unexpected error")
+			return
+		}
+		chirps = userChirps
 	}
 
 	output := make([]outputChirp, len(chirps))
@@ -146,6 +151,9 @@ func (api *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 			Body:      chirp.Body,
 			UserID:    chirp.UserID.UUID,
 		}
+	}
+	if sort == "desc" {
+		slices.Reverse(output)
 	}
 	OkResponse(w, output)
 }
@@ -176,4 +184,32 @@ func (api *ApiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 		UserID:    chirp.UserID.UUID,
 	}
 	OkResponse(w, output)
+}
+
+func (api *ApiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
+	userID := parseUserIDFromRequest(r)
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+
+	if err != nil {
+		BadRequestResponse(w, "Invalid chirpID")
+		return
+	}
+	chirp, err := api.DB.FindChirpByID(r.Context(), chirpID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			NotFoundResponse(w, "Chirp not found")
+		} else {
+			InternalServerErrorResponse(w, "Unexpected error")
+		}
+		return
+	}
+	if chirp.UserID.UUID != userID {
+		ForbiddenResponse(w, "Chirp does not belong to your user")
+		return
+	}
+	err = api.DB.DeleteChirp(r.Context(), chirpID)
+	if err != nil {
+		InternalServerErrorResponse(w, "Could not delete chirp. Try again later")
+	}
+	RespondWithJSON(w, http.StatusNoContent, struct{}{})
 }
